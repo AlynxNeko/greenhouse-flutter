@@ -6,7 +6,8 @@ import '../providers/history_provider.dart';
 import '../models/status_model.dart';
 
 class HistoryChart extends StatelessWidget {
-  const HistoryChart({super.key});
+  final String type; // 'temp' or 'hum'
+  const HistoryChart({super.key, this.type = 'temp'});
 
   @override
   Widget build(BuildContext context) {

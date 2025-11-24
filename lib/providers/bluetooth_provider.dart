@@ -5,6 +5,14 @@ import 'dart:async';
 import '../services/bluetooth_service.dart';
 import 'status_provider.dart';
 
+class TestResult {
+  final int successCount;
+  final int totalCount;
+  final double avgLatencyMs;
+  
+  TestResult(this.successCount, this.totalCount, this.avgLatencyMs);
+}
+
 class BluetoothProvider extends ChangeNotifier {
   final bt = BluetoothService();
   bool isConnected = false;
@@ -59,4 +67,36 @@ class BluetoothProvider extends ChangeNotifier {
 
   // Expose the underlying message stream for the DevChatPage to listen to
   Stream<String> get messageStream => bt.messageStream;
+
+  // Fungsi Testing Latency & Reliability
+  Future<TestResult> runLatencyTest(String command, int count, int intervalMs) async {
+    int success = 0;
+    int totalLatency = 0;
+    
+    for (int i = 0; i < count; i++) {
+      int start = DateTime.now().millisecondsSinceEpoch;
+      
+      // Kirim perintah
+      send(command);
+      
+      // Tunggu respons (sederhana: tunggu stream event berikutnya yang valid)
+      try {
+        // Kita tunggu max 2 detik untuk reply
+        await messageStream.firstWhere((msg) => msg.startsWith("STATUS:")).timeout(const Duration(seconds: 2));
+        
+        int end = DateTime.now().millisecondsSinceEpoch;
+        totalLatency += (end - start);
+        success++;
+      } catch (e) {
+        // Timeout / Gagal
+        print("Packet $i lost or timeout");
+      }
+      
+      // Delay antar paket
+      await Future.delayed(Duration(milliseconds: intervalMs));
+    }
+    
+    double avg = success > 0 ? totalLatency / success : 0.0;
+    return TestResult(success, count, avg);
+  }
 }
