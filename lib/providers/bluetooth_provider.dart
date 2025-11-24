@@ -1,3 +1,4 @@
+// [File: alynxneko/greenhouse-flutter/greenhouse-flutter-d19d01448f5e36d3c2a1b24fa94caff8ae934a29/lib/providers/bluetooth_provider.dart]
 import 'package:flutter/material.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -19,37 +20,27 @@ class BluetoothProvider extends ChangeNotifier {
   BluetoothDevice? device;
   StreamSubscription<String>? _dataSubscription;
 
-  // New method to request permissions (from your working code)
   Future<void> requestBluetoothPermissions() async {
-    if (await Permission.bluetoothScan.isDenied) {
-      await Permission.bluetoothScan.request();
-    }
-    if (await Permission.bluetoothConnect.isDenied) {
-      await Permission.bluetoothConnect.request();
-    }
-    if (await Permission.location.isDenied) {
-      await Permission.location.request();
-    }
+    await [
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+      Permission.location
+    ].request();
     await FlutterBluetoothSerial.instance.requestEnable();
   }
 
   Future<bool> connect(BluetoothDevice d, StatusProvider status) async {
-    if (!await Permission.bluetoothConnect.isGranted) {
-      return false;
-    }
-    
+    // ... permissions ...
     device = d;
     isConnected = await bt.connect(d.address);
 
     if (isConnected) {
-      // Start listening to the broadcast stream only for status updates
       _dataSubscription = bt.messageStream.listen((raw) {
         if (raw.startsWith("STATUS:")) {
           status.update(raw.replaceFirst("STATUS:", ""));
         }
       });
     }
-
     notifyListeners();
     return isConnected;
   }
@@ -58,42 +49,53 @@ class BluetoothProvider extends ChangeNotifier {
 
   void disconnect() {
     _dataSubscription?.cancel();
-    _dataSubscription = null;
     bt.dispose();
     isConnected = false;
-    device = null;
     notifyListeners();
   }
 
-  // Expose the underlying message stream for the DevChatPage to listen to
   Stream<String> get messageStream => bt.messageStream;
 
-  // Fungsi Testing Latency & Reliability
+  // UPDATED: Network Test with longer delays and robust waiting
   Future<TestResult> runLatencyTest(String command, int count, int intervalMs) async {
     int success = 0;
     int totalLatency = 0;
     
+    // Use a broadcast subscription for the test to not interfere with main logic
+    // Note: Doing this inside the loop allows us to catch the specific response
+    
     for (int i = 0; i < count; i++) {
       int start = DateTime.now().millisecondsSinceEpoch;
+      bool packetReceived = false;
       
-      // Kirim perintah
+      // 1. Send Command
       send(command);
       
-      // Tunggu respons (sederhana: tunggu stream event berikutnya yang valid)
+      // 2. Wait for response (using a temporary subscription)
+      final completer = Completer<void>();
+      final sub = messageStream.listen((msg) {
+        if (msg.startsWith("STATUS:") && !completer.isCompleted) {
+          packetReceived = true;
+          completer.complete();
+        }
+      });
+
       try {
-        // Kita tunggu max 2 detik untuk reply
-        await messageStream.firstWhere((msg) => msg.startsWith("STATUS:")).timeout(const Duration(seconds: 2));
-        
+        // Wait for response OR timeout (4 seconds max for LoRa roundtrip)
+        await completer.future.timeout(const Duration(seconds: 4));
         int end = DateTime.now().millisecondsSinceEpoch;
         totalLatency += (end - start);
         success++;
       } catch (e) {
-        // Timeout / Gagal
-        print("Packet $i lost or timeout");
+        print("Packet $i lost/timeout");
+      } finally {
+        sub.cancel();
       }
       
-      // Delay antar paket
-      await Future.delayed(Duration(milliseconds: intervalMs));
+      // 3. Mandatory delay before next packet
+      // Ensure intervalMs is at least 2000ms for LoRa SF10
+      int safeInterval = intervalMs < 2000 ? 2000 : intervalMs;
+      await Future.delayed(Duration(milliseconds: safeInterval));
     }
     
     double avg = success > 0 ? totalLatency / success : 0.0;
