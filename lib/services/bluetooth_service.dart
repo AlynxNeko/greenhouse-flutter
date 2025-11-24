@@ -32,7 +32,9 @@ class BluetoothService {
 
   void send(String msg) {
     if (connection != null && connection!.isConnected) {
-      connection!.output.add(Uint8List.fromList(msg.codeUnits));
+      // UPDATED: Add "\r\n" delimiter so the Arduino knows the command is finished
+      String messageWithDelimiter = "$msg\r\n"; 
+      connection!.output.add(Uint8List.fromList(messageWithDelimiter.codeUnits));
       connection!.output.allSent;
     }
   }
