@@ -7,6 +7,7 @@ import '../providers/history_provider.dart'; // Import HistoryProvider
 import '../widgets/metrics_card.dart';
 import 'stepper_page.dart';
 import '../widgets/history_chart.dart';
+import 'log_page.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -56,12 +57,6 @@ class DashboardPage extends StatelessWidget {
     );
   }
 
-  void _saveCsv(BuildContext context) async {
-    final history = context.read<HistoryProvider>();
-    final msg = await history.exportToCSV();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
-
   @override
   Widget build(BuildContext context) {
     final status = context.watch<StatusProvider>().status;
@@ -95,11 +90,20 @@ class DashboardPage extends StatelessWidget {
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.orange[900]),
                     ),
                     ElevatedButton.icon(
-                      icon: const Icon(Icons.save, size: 16),
-                      label: const Text("Save CSV"),
-                      onPressed: () => _saveCsv(context),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green[900]),
-                    ),
+                      icon: const Icon(Icons.download),
+                      label: const Text("Export CSV"),
+                      onPressed: () async {
+                        // This calls the method we just added
+                        final msg = await context.read<HistoryProvider>().exportToCSV();
+                        
+                        // Show the result (e.g., the file path)
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(msg)),
+                          );
+                        }
+                      },
+                    )
                   ],
                 )
               ],
@@ -175,6 +179,57 @@ class DashboardPage extends StatelessWidget {
         const HistoryChart(type: 'hum'), // This now works with the fixed widget
         
         const SizedBox(height: 50),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // ... existing buttons ...
+            ElevatedButton.icon(
+              icon: const Icon(Icons.table_chart, size: 16),
+              label: const Text("Logs"),
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const LogPage()));
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.purple[900]),
+            ),
+          ],
+        ),
+        Card(
+          color: Colors.red[900]!.withOpacity(0.2),
+          child: ListTile(
+            leading: const Icon(Icons.delete_forever, color: Colors.redAccent),
+            title: const Text("Reset Data History"),
+            subtitle: const Text("Clear all logs and graphs"),
+            trailing: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () {
+                // Confirmation Dialog
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text("Clear History?"),
+                    content: const Text("This will delete all saved CSV logs and reset the graphs. This cannot be undone."),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                        onPressed: () {
+                          // CALL THE RESET FUNCTION
+                          context.read<HistoryProvider>().clear();
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("History Cleared!")),
+                          );
+                        },
+                        child: const Text("Clear"),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              child: const Text("Reset"),
+            ),
+          ),
+        ),
       ],
     );
   }

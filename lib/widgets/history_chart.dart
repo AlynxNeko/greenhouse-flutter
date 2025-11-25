@@ -1,8 +1,7 @@
-// [File: alynxneko/greenhouse-flutter/greenhouse-flutter-d19d01448f5e36d3c2a1b24fa94caff8ae934a29/lib/widgets/history_chart.dart]
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
-
+import 'package:intl/intl.dart';
 import '../providers/history_provider.dart';
 import '../models/status_model.dart';
 
@@ -13,25 +12,44 @@ class HistoryChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hist = context.watch<HistoryProvider>().items;
-    final isTemp = type == 'temp';
+
+    if (hist.isEmpty) {
+      return const SizedBox(height: 300, child: Center(child: Text("No Data")));
+    }
+
+    // Determine Value based on type
+    double getValue(StatusModel d) => type == 'temp' ? d.temp : d.hum;
+    
+    // Dynamic Y-Axis Range Calculation
+    double minVal = hist.map(getValue).reduce((a, b) => a < b ? a : b);
+    double maxVal = hist.map(getValue).reduce((a, b) => a > b ? a : b);
+    
+    // Add padding so the line isn't stuck to the edge
+    double padding = (maxVal - minVal) * 0.1;
+    if (padding == 0) padding = 1.0; 
 
     return SizedBox(
       height: 300,
       child: SfCartesianChart(
-        title: ChartTitle(text: isTemp ? "Temperature History" : "Humidity History"),
-        primaryXAxis: NumericAxis(title: AxisTitle(text: "Index")),
+        title: ChartTitle(text: type == 'temp' ? "Temperature History" : "Humidity History"),
+        // X-Axis is now DateTime
+        primaryXAxis: DateTimeAxis(
+          dateFormat: DateFormat.Hms(), // Show Hour:Min:Sec
+          title: AxisTitle(text: "Time"),
+          majorGridLines: const MajorGridLines(width: 0),
+        ),
+        // Y-Axis is dynamic
         primaryYAxis: NumericAxis(
-          title: AxisTitle(text: isTemp ? "°C" : "%"),
-          minimum: isTemp ? 20 : 0,
-          maximum: isTemp ? 60 : 100,
+          title: AxisTitle(text: type == 'temp' ? "°C" : "%"),
+          minimum: (minVal - padding).floorToDouble(),
+          maximum: (maxVal + padding).ceilToDouble(),
         ),
         series: [
-          LineSeries<StatusModel, int>(
+          LineSeries<StatusModel, DateTime>(
             dataSource: hist,
-            xValueMapper: (d, i) => i,
-            yValueMapper: (d, i) => isTemp ? d.temp : d.hum,
-            color: isTemp ? Colors.orange : Colors.blue,
-            name: isTemp ? "Temp" : "Humidity",
+            xValueMapper: (d, i) => d.timestamp,
+            yValueMapper: (d, i) => getValue(d),
+            animationDuration: 500,
           )
         ],
       ),

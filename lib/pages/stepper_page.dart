@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/bluetooth_provider.dart';
+import '../providers/status_provider.dart';
 import '../widgets/circle_rack.dart';
+
 
 class StepperPage extends StatefulWidget {
   final int currentRack;
@@ -19,6 +21,7 @@ class _StepperPageState extends State<StepperPage> {
   @override
   Widget build(BuildContext context) {
     final bt = context.read<BluetoothProvider>();
+    final status = context.watch<StatusProvider>().status; // Watch status for updates
 
     return Scaffold(
       appBar: AppBar(title: Text("Stepper Control")),
@@ -68,7 +71,12 @@ class _StepperPageState extends State<StepperPage> {
           ),
 
           const SizedBox(height: 30),
-          Center(child: CircleRack(current: widget.currentRack)),
+          Center(
+            child: CircleRack(
+              angleDegrees: status.angle, // <--- Pass dynamic angle
+              activeRack: status.rack,
+            ),
+          ),
         ],
       ),
     );

@@ -1,19 +1,23 @@
 class StatusModel {
-  double temp;
-  double hum;
-  double emc;
-  int rack;
-  bool fan;
-  int predicted; 
-  int rssi; // Tambahan
-  double snr; // Tambahan
-  int mode; // 0: Auto, 1: Semi, 2: Notify
+  final DateTime timestamp; // Added
+  final double temp;
+  final double hum;
+  final double emc;
+  final int rack;
+  final double angle;
+  final bool fan;
+  final int predicted; 
+  final int rssi;
+  final double snr;
+  final int mode;
 
   StatusModel({
+    required this.timestamp, // Added
     required this.temp,
     required this.hum,
     required this.emc,
     required this.rack,
+    required this.angle,
     required this.fan,
     required this.predicted,
     required this.rssi,
@@ -21,13 +25,14 @@ class StatusModel {
     required this.mode,
   });
 
-  // Default values are NaN to indicate "No Data"
   factory StatusModel.initial() {
     return StatusModel(
+      timestamp: DateTime.now(), // Default to now
       temp: double.nan,
       hum: double.nan,
       emc: double.nan,
       rack: 0,
+      angle: 0.0,
       fan: false,
       predicted: 0,
       rssi: 0,
@@ -39,26 +44,34 @@ class StatusModel {
   factory StatusModel.fromPacket(String raw) {
     double _d(String key) {
       final m = RegExp("$key=(.*?);").firstMatch(raw);
-      // Handle NaN parsing if needed or default to 0
       return double.tryParse(m?.group(1) ?? "0") ?? 0.0;
     }
     
-    // Khusus parsing data RSSI/SNR yang mungkin di akhir string tanpa titik koma penutup yang rapi
     int _rssi() {
       final m = RegExp("RSSI=(.*?)(;|\\s|\$)").firstMatch(raw);
       return int.tryParse(m?.group(1) ?? "0") ?? 0;
     }
 
     return StatusModel(
+      timestamp: DateTime.now(), // Capture time of parsing
       temp: _d("T"),
       hum: _d("H"),
       emc: _d("EMC"),
       rack: _d("RACK").toInt(),
+      angle: _d("ANG"),
       fan: _d("FAN") == 1,
       predicted: _d("PRED").toInt(),
       mode: _d("MODE").toInt(),
       rssi: _rssi(),
       snr: _d("SNR"),
     );
+  }
+
+  // Helper for CSV
+  List<dynamic> toList() {
+    return [
+      timestamp.toIso8601String(),
+      temp, hum, emc, rack, fan ? 1 : 0, predicted, mode, rssi, snr
+    ];
   }
 }
