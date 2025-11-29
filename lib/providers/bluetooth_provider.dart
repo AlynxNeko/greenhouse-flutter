@@ -1,4 +1,3 @@
-// [File: alynxneko/greenhouse-flutter/greenhouse-flutter-d19d01448f5e36d3c2a1b24fa94caff8ae934a29/lib/providers/bluetooth_provider.dart]
 import 'package:flutter/material.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -30,7 +29,6 @@ class BluetoothProvider extends ChangeNotifier {
   }
 
   Future<bool> connect(BluetoothDevice d, StatusProvider status) async {
-    // ... permissions ...
     device = d;
     isConnected = await bt.connect(d.address);
 
@@ -56,23 +54,24 @@ class BluetoothProvider extends ChangeNotifier {
 
   Stream<String> get messageStream => bt.messageStream;
 
-  // UPDATED: Network Test with longer delays and robust waiting
+  // UPDATED: Network Test with Pause/Resume Auto logic
   Future<TestResult> runLatencyTest(String command, int count, int intervalMs) async {
     int success = 0;
     int totalLatency = 0;
     
-    // Use a broadcast subscription for the test to not interfere with main logic
-    // Note: Doing this inside the loop allows us to catch the specific response
-    
+    // 1. Disable Auto Send on Sensor Node
+    send("PAUSEAUTO");
+    // Give it a moment to process
+    await Future.delayed(const Duration(milliseconds: 500));
+
     for (int i = 0; i < count; i++) {
       int start = DateTime.now().millisecondsSinceEpoch;
       bool packetReceived = false;
       
-      // 1. Send Command
       send(command);
       
-      // 2. Wait for response (using a temporary subscription)
       final completer = Completer<void>();
+      // Temporary listener for this specific packet
       final sub = messageStream.listen((msg) {
         if (msg.startsWith("STATUS:") && !completer.isCompleted) {
           packetReceived = true;
@@ -81,7 +80,6 @@ class BluetoothProvider extends ChangeNotifier {
       });
 
       try {
-        // Wait for response OR timeout (4 seconds max for LoRa roundtrip)
         await completer.future.timeout(const Duration(seconds: 4));
         int end = DateTime.now().millisecondsSinceEpoch;
         totalLatency += (end - start);
@@ -92,12 +90,14 @@ class BluetoothProvider extends ChangeNotifier {
         sub.cancel();
       }
       
-      // 3. Mandatory delay before next packet
-      // Ensure intervalMs is at least 2000ms for LoRa SF10
-      int safeInterval = intervalMs < 2000 ? 2000 : intervalMs;
-      await Future.delayed(Duration(milliseconds: safeInterval));
+      await Future.delayed(Duration(milliseconds: 200));
     }
     
+    // Delay before re-enabling auto send
+    await Future.delayed(const Duration(milliseconds: 500));
+    // 2. Re-enable Auto Send
+    send("RESUMEAUTO");
+
     double avg = success > 0 ? totalLatency / success : 0.0;
     return TestResult(success, count, avg);
   }

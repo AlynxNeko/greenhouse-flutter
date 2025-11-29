@@ -1,5 +1,5 @@
 class StatusModel {
-  final DateTime timestamp; // Added
+  final DateTime timestamp; 
   final double temp;
   final double hum;
   final double emc;
@@ -12,7 +12,7 @@ class StatusModel {
   final int mode;
 
   StatusModel({
-    required this.timestamp, // Added
+    required this.timestamp,
     required this.temp,
     required this.hum,
     required this.emc,
@@ -27,7 +27,7 @@ class StatusModel {
 
   factory StatusModel.initial() {
     return StatusModel(
-      timestamp: DateTime.now(), // Default to now
+      timestamp: DateTime.now(),
       temp: double.nan,
       hum: double.nan,
       emc: double.nan,
@@ -48,12 +48,19 @@ class StatusModel {
     }
     
     int _rssi() {
+      // Handles trailing semicolon OR end of string
       final m = RegExp("RSSI=(.*?)(;|\\s|\$)").firstMatch(raw);
       return int.tryParse(m?.group(1) ?? "0") ?? 0;
     }
 
+    double _snr() {
+      // UPDATED: Handles trailing semicolon OR end of string
+      final m = RegExp("SNR=(.*?)(;|\\s|\$)").firstMatch(raw);
+      return double.tryParse(m?.group(1) ?? "0") ?? 0.0;
+    }
+
     return StatusModel(
-      timestamp: DateTime.now(), // Capture time of parsing
+      timestamp: DateTime.now(), 
       temp: _d("T"),
       hum: _d("H"),
       emc: _d("EMC"),
@@ -63,7 +70,7 @@ class StatusModel {
       predicted: _d("PRED").toInt(),
       mode: _d("MODE").toInt(),
       rssi: _rssi(),
-      snr: _d("SNR"),
+      snr: _snr(), // Use the new safe parser
     );
   }
 

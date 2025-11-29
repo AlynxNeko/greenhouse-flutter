@@ -17,8 +17,49 @@ class DashboardPage extends StatelessWidget {
     return "${val.toStringAsFixed(1)} $unit";
   }
 
-  // ... (Previous dialog code: _showInitialMoistureDialog) ...
-  void _showInitialMoistureDialog(BuildContext context) { /* ... Keep existing code ... */ }
+  void _showInitialMoistureDialog(BuildContext context) {
+    final bt = context.read<BluetoothProvider>();
+    final ctrl = TextEditingController();
+    
+    showDialog(
+      context: context, 
+      builder: (ctx) => AlertDialog(
+        title: const Text("Set Initial Moisture"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Masukkan estimasi kadar air awal (%):"),
+            TextField(
+              controller: ctrl, 
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(hintText: "e.g. 15.0"),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              children: [
+                ActionChip(label: const Text("Dry (10%)"), onPressed: () => ctrl.text = "10.0"),
+                ActionChip(label: const Text("Normal (15%)"), onPressed: () => ctrl.text = "15.0"),
+                ActionChip(label: const Text("Wet (20%)"), onPressed: () => ctrl.text = "20.0"),
+              ],
+            )
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () {
+              if(ctrl.text.isNotEmpty) {
+                bt.send("SETMOIST:${ctrl.text}");
+                Navigator.pop(ctx);
+              }
+            }, 
+            child: const Text("Set")
+          )
+        ],
+      )
+    );
+  }
 
   void _showTestDialog(BuildContext context) {
     final bt = context.read<BluetoothProvider>();
@@ -78,11 +119,34 @@ class DashboardPage extends StatelessWidget {
             padding: const EdgeInsets.all(12.0),
             child: Column(
               children: [
-                // ... (Dropdown code) ...
-                // Add CSV Button here
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    const Text("System Mode:", style: TextStyle(color: Colors.grey)),
+                      DropdownButton<int>(
+                        value: status.mode, // 0, 1, 2
+                        dropdownColor: Colors.grey[800],
+                        items: const [
+                          DropdownMenuItem(value: 0, child: Text("Automatic")),
+                          DropdownMenuItem(value: 1, child: Text("Semi-Auto")),
+                          DropdownMenuItem(value: 2, child: Text("Notify Only")),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) btProvider.send("SETMODE:$val");
+                        },
+                      ),
+                    ],
+                  ),
+                  const Divider(),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.water_drop, size: 16),
+                        label: const Text("Set Initial Moisture"),
+                        onPressed: () => _showInitialMoistureDialog(context),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.blue[900]),
+                      ),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.speed, size: 16),
                       label: const Text("Test Net"),
