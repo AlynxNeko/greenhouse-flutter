@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class StatusModel {
   final DateTime timestamp; 
   final double temp;
@@ -10,7 +12,6 @@ class StatusModel {
   final int rssi;
   final double snr;
   final int mode;
-  final List<String> mData; // NEW: Holds the 8 moisture values
 
   StatusModel({
     required this.timestamp,
@@ -24,7 +25,6 @@ class StatusModel {
     required this.rssi,
     required this.snr,
     required this.mode,
-    required this.mData,
   });
 
   factory StatusModel.initial() {
@@ -40,7 +40,6 @@ class StatusModel {
       rssi: 0,
       snr: 0.0,
       mode: 0,
-      mData: List.filled(8, "0.0"),
     );
   }
 
@@ -51,7 +50,6 @@ class StatusModel {
     }
     
     int _rssi() {
-      // Handles trailing semicolon OR end of string
       final m = RegExp("RSSI=(.*?)(;|\\s|\$)").firstMatch(raw);
       return int.tryParse(m?.group(1) ?? "0") ?? 0;
     }
@@ -61,15 +59,6 @@ class StatusModel {
       return double.tryParse(m?.group(1) ?? "0") ?? 0.0;
     }
 
-    // Parse "M_DATA=15.1,15.2,..."
-    List<String> _parseMData() {
-      final m = RegExp("M_DATA=(.*?);").firstMatch(raw);
-      if (m != null && m.group(1) != null) {
-        return m.group(1)!.split(',');
-      }
-      return List.filled(8, "0.0"); // Fallback
-    }
-
     return StatusModel(
       timestamp: DateTime.now(), 
       temp: _d("T"),
@@ -77,13 +66,44 @@ class StatusModel {
       emc: _d("EMC"),
       rack: _d("RACK").toInt(),
       angle: _d("ANG"),
-      // FIX: Inverted logic. Assuming FAN=0 means ON (Active Low)
-      fan: _d("FAN") == 0, 
+      fan: _d("FAN") == 1,
       predicted: _d("PRED").toInt(),
       mode: _d("MODE").toInt(),
       rssi: _rssi(),
       snr: _snr(),
-      mData: _parseMData(),
     );
+  }
+
+  // --- NEW: Parse from CSV Line ---
+  factory StatusModel.fromCsv(String line) {
+    try {
+      final p = line.split(',');
+      // CSV Format: Timestamp,Temp,Hum,EMC,Rack,Fan,Pred,Mode,RSSI,SNR
+      if (p.length < 10) return StatusModel.initial();
+
+      return StatusModel(
+        timestamp: DateTime.parse(p[0]),
+        temp: double.tryParse(p[1]) ?? 0.0,
+        hum: double.tryParse(p[2]) ?? 0.0,
+        emc: double.tryParse(p[3]) ?? 0.0,
+        rack: int.tryParse(p[4]) ?? 0,
+        angle: 0.0, // Angle isn't saved in CSV currently
+        fan: p[5] == '1',
+        predicted: int.tryParse(p[6]) ?? 0,
+        mode: int.tryParse(p[7]) ?? 0,
+        rssi: int.tryParse(p[8]) ?? 0,
+        snr: double.tryParse(p[9]) ?? 0.0,
+      );
+    } catch (e) {
+      debugPrint("Error parsing CSV line: $e");
+      return StatusModel.initial();
+    }
+  }
+
+  List<dynamic> toList() {
+    return [
+      timestamp.toIso8601String(),
+      temp, hum, emc, rack, fan ? 1 : 0, predicted, mode, rssi, snr
+    ];
   }
 }

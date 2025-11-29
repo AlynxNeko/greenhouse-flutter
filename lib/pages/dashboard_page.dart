@@ -7,6 +7,7 @@ import '../widgets/metrics_card.dart';
 import 'stepper_page.dart';
 import '../widgets/history_chart.dart';
 import 'log_page.dart';
+import 'full_history_page.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -253,13 +254,13 @@ class DashboardPage extends StatelessWidget {
             children: [
               ListTile(
                 leading: const Icon(Icons.file_open, color: Colors.blueAccent),
-                title: const Text("Buka Log Harian (CSV)"),
-                subtitle: const Text("Lihat atau bagikan file log hari ini"),
-                onTap: () async {
-                  final msg = await context.read<HistoryProvider>().openTodayLog();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-                  }
+                title: const Text("View Full History File"),
+                subtitle: const Text(""),
+                onTap: () async { 
+                  Navigator.push(
+                    context, 
+                    MaterialPageRoute(builder: (_) => const FullHistoryPage())
+                  );
                 },
               ),
               const Divider(height: 1),

@@ -4,6 +4,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 import '../services/bluetooth_service.dart';
 import 'status_provider.dart';
+import '../services/notification_service.dart'; // <--- Import
 
 class TestResult {
   final int successCount;
@@ -19,6 +20,38 @@ class BluetoothProvider extends ChangeNotifier {
   BluetoothDevice? device;
   StreamSubscription<String>? _dataSubscription;
 
+  Future<bool> connect(BluetoothDevice d, StatusProvider status) async {
+    device = d;
+    isConnected = await bt.connect(d.address);
+
+    if (isConnected) {
+      _dataSubscription = bt.messageStream.listen((raw) {
+        // Trim whitespace to ensure clean matching
+        final msg = raw.trim();
+
+        if (msg.startsWith("STATUS:")) {
+          status.update(msg.replaceFirst("STATUS:", ""));
+        } 
+        // --- NEW COMMANDS ---
+        else if (msg == "DONE") {
+          NotificationService.show(
+            "Process Complete", 
+            "The coffee beans are dry."
+          );
+        } 
+        else if (msg == "NEEDTOSPIN") {
+          NotificationService.show(
+            "Action Required", 
+            "Greenhouse needs to spin to the next rack!"
+          );
+        }
+        
+      });
+    }
+    notifyListeners();
+    return isConnected;
+  }
+
   Future<void> requestBluetoothPermissions() async {
     await [
       Permission.bluetoothScan,
@@ -26,21 +59,6 @@ class BluetoothProvider extends ChangeNotifier {
       Permission.location
     ].request();
     await FlutterBluetoothSerial.instance.requestEnable();
-  }
-
-  Future<bool> connect(BluetoothDevice d, StatusProvider status) async {
-    device = d;
-    isConnected = await bt.connect(d.address);
-
-    if (isConnected) {
-      _dataSubscription = bt.messageStream.listen((raw) {
-        if (raw.startsWith("STATUS:")) {
-          status.update(raw.replaceFirst("STATUS:", ""));
-        }
-      });
-    }
-    notifyListeners();
-    return isConnected;
   }
 
   void send(String cmd) => bt.send(cmd);

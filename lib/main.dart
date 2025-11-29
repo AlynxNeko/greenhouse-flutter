@@ -6,8 +6,11 @@ import 'providers/bluetooth_provider.dart';
 import 'providers/status_provider.dart';
 import 'providers/history_provider.dart';
 import 'pages/bluetooth_connect_page.dart';
+import 'services/notification_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.init(); // <--- Initialize Notifications
   runApp(
     MultiProvider(
       providers: [

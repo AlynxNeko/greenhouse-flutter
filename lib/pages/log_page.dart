@@ -1,116 +1,66 @@
+// lib/pages/log_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/history_provider.dart';
+import 'full_history_page.dart'; // <--- Import New Page
 
 class LogPage extends StatelessWidget {
   const LogPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Watch history changes
+    // keeping the "live" in-memory items here for quick viewing
     final history = context.watch<HistoryProvider>();
-    // Reverse to show newest at top
-    final items = history.items.reversed.toList();
+    final items = history.items.reversed.toList(); 
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Riwayat Data"),
+        title: const Text("Session Logs"),
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_forever),
-            tooltip: "Hapus Riwayat",
+            tooltip: "Clear History",
             onPressed: () {
-              _showClearConfirmation(context);
+              history.clear();
             },
           ),
+          // MODIFIED BUTTON
           IconButton(
-            icon: const Icon(Icons.file_open),
-            tooltip: "Buka File CSV",
-            onPressed: () async {
-              // FIX: Calls the updated method from HistoryProvider
-              final msg = await context.read<HistoryProvider>().openTodayLog();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-              }
-            },
-          ),
-        ],
-      ),
-      body: items.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.history_toggle_off, size: 64, color: Colors.grey[700]),
-                  const SizedBox(height: 16),
-                  const Text("Belum ada data terekam.", style: TextStyle(color: Colors.grey)),
-                ],
-              ),
-            )
-          : SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  // Darker header row for better contrast
-                  headingRowColor: MaterialStateProperty.resolveWith(
-                      (states) => Colors.grey[900]),
-                  columns: const [
-                    DataColumn(label: Text("Waktu", style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text("Suhu (°C)", style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text("RH (%)", style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text("EMC (%)", style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text("Rak", style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text("Mode", style: TextStyle(fontWeight: FontWeight.bold))),
-                  ],
-                  rows: items.map((e) {
-                    return DataRow(cells: [
-                      DataCell(Text(DateFormat('HH:mm:ss').format(e.timestamp))),
-                      DataCell(Text(e.temp.toStringAsFixed(1))),
-                      DataCell(Text(e.hum.toStringAsFixed(1))),
-                      DataCell(Text(e.emc.toStringAsFixed(1))),
-                      DataCell(Text(e.rack.toString())),
-                      DataCell(Text(_getModeName(e.mode))),
-                    ]);
-                  }).toList(),
-                ),
-              ),
-            ),
-    );
-  }
-
-  // Helper to translate mode number to text
-  String _getModeName(int mode) {
-    switch (mode) {
-      case 0: return "Auto";
-      case 1: return "Semi";
-      case 2: return "Notif";
-      default: return "?";
-    }
-  }
-
-  void _showClearConfirmation(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Hapus Semua Data?"),
-        content: const Text("Tindakan ini akan menghapus grafik dan semua file CSV log secara permanen."),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Batal")),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            icon: const Icon(Icons.history), // Changed icon to history
+            tooltip: "View All History",
             onPressed: () {
-              context.read<HistoryProvider>().clear();
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Riwayat berhasil dihapus.")),
+              Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (_) => const FullHistoryPage())
               );
             },
-            child: const Text("Hapus"),
           ),
         ],
       ),
+      body: items.isEmpty 
+        ? const Center(child: Text("No logs in this session.\nClick the History icon to see past data."))
+        : SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columns: const [
+                DataColumn(label: Text("Time")),
+                DataColumn(label: Text("Temp")),
+                DataColumn(label: Text("Hum")),
+                DataColumn(label: Text("EMC")),
+                DataColumn(label: Text("Rack")),
+              ],
+              rows: items.map((e) {
+                return DataRow(cells: [
+                  DataCell(Text(DateFormat('HH:mm:ss').format(e.timestamp))),
+                  DataCell(Text(e.temp.toStringAsFixed(1))),
+                  DataCell(Text(e.hum.toStringAsFixed(1))),
+                  DataCell(Text(e.emc.toStringAsFixed(1))),
+                  DataCell(Text(e.rack.toString())),
+                ]);
+              }).toList(),
+            ),
+          ),
     );
   }
 }
