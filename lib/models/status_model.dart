@@ -10,6 +10,7 @@ class StatusModel {
   final int rssi;
   final double snr;
   final int mode;
+  final List<String> mData; // NEW: Holds the 8 moisture values
 
   StatusModel({
     required this.timestamp,
@@ -23,6 +24,7 @@ class StatusModel {
     required this.rssi,
     required this.snr,
     required this.mode,
+    required this.mData,
   });
 
   factory StatusModel.initial() {
@@ -38,6 +40,7 @@ class StatusModel {
       rssi: 0,
       snr: 0.0,
       mode: 0,
+      mData: List.filled(8, "0.0"),
     );
   }
 
@@ -54,9 +57,17 @@ class StatusModel {
     }
 
     double _snr() {
-      // UPDATED: Handles trailing semicolon OR end of string
       final m = RegExp("SNR=(.*?)(;|\\s|\$)").firstMatch(raw);
       return double.tryParse(m?.group(1) ?? "0") ?? 0.0;
+    }
+
+    // Parse "M_DATA=15.1,15.2,..."
+    List<String> _parseMData() {
+      final m = RegExp("M_DATA=(.*?);").firstMatch(raw);
+      if (m != null && m.group(1) != null) {
+        return m.group(1)!.split(',');
+      }
+      return List.filled(8, "0.0"); // Fallback
     }
 
     return StatusModel(
@@ -66,19 +77,13 @@ class StatusModel {
       emc: _d("EMC"),
       rack: _d("RACK").toInt(),
       angle: _d("ANG"),
-      fan: _d("FAN") == 1,
+      // FIX: Inverted logic. Assuming FAN=0 means ON (Active Low)
+      fan: _d("FAN") == 0, 
       predicted: _d("PRED").toInt(),
       mode: _d("MODE").toInt(),
       rssi: _rssi(),
-      snr: _snr(), // Use the new safe parser
+      snr: _snr(),
+      mData: _parseMData(),
     );
-  }
-
-  // Helper for CSV
-  List<dynamic> toList() {
-    return [
-      timestamp.toIso8601String(),
-      temp, hum, emc, rack, fan ? 1 : 0, predicted, mode, rssi, snr
-    ];
   }
 }
