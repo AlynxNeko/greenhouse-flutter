@@ -56,7 +56,8 @@ class BluetoothProvider extends ChangeNotifier {
     await [
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
-      Permission.location
+      Permission.location,
+      Permission.notification,
     ].request();
     await FlutterBluetoothSerial.instance.requestEnable();
   }
