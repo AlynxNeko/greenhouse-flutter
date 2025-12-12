@@ -160,7 +160,8 @@ class DashboardPage extends StatelessWidget {
           children: [
             MetricsCard("Suhu", _fmt(status.temp, "°C")),
             MetricsCard("Kelembaban", _fmt(status.hum, "%")),
-            MetricsCard("Kadar Air (EMC)", _fmt(status.emc, "%")),
+            // UPDATED: Now shows Avg Moisture instead of EMC
+            MetricsCard("Rata-rata Kadar Air", _fmt(status.avgMoisture, "%")),
             MetricsCard("Posisi Rak", "${status.rack}/8"),
             MetricsCard("Estimasi Selesai", "${status.predicted} m"),
             MetricsCard("Mode", status.mode == 0 ? "AUTO" : (status.mode == 1 ? "SEMI" : "NOTIF")),
@@ -201,8 +202,7 @@ class DashboardPage extends StatelessWidget {
             value: !status.fan,
             activeColor: Colors.greenAccent,
             onChanged: (bool value) {
-              // FIX: Send FANON when switch is TRUE, FANOFF when false
-              btProvider.send(value ? "FANON" : "FANOFF");
+              btProvider.send(value ? "FANOFF" : "FANON");
             },
           ),
         ),
@@ -309,8 +309,6 @@ class DashboardPage extends StatelessWidget {
     );
   }
 }
-
-// --- Helper Widgets for Cleaner Code ---
 
 class _SignalBadge extends StatelessWidget {
   final String label;
